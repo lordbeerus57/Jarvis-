@@ -16,10 +16,10 @@ import ollama
 # ─────────────────────────────────────────────
 #  CONFIGURATION
 # ─────────────────────────────────────────────
-API_ID         = int(os.getenv("API_ID", "0"))
-API_HASH       = os.getenv("API_HASH", "")
+API_ID         = int(os.getenv("API_ID", "12400175"))
+API_HASH       = os.getenv("API_HASH", "bd6cffecc030c99a2d23e2f9ff892c5f")
 SESSION_STRING = os.getenv("SESSION_STRING", "")   # for Render (no local session file)
-LOG_GROUP_ID   = int(os.getenv("LOG_GROUP_ID", "0"))
+LOG_GROUP_ID   = int(os.getenv("LOG_GROUP_ID", "-1002798388984"))
 MODEL          = os.getenv("JARVIS_MODEL", "gemma4:27b")
 DEPLOY_DIR     = os.getenv("DEPLOY_DIR", "/opt/bots")
 VENV_PYTHON    = os.getenv("VENV_PYTHON", "python3")
@@ -592,4 +592,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-  
+    
