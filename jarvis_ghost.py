@@ -18,7 +18,7 @@ import ollama
 # ─────────────────────────────────────────────
 API_ID         = int(os.getenv("API_ID", "12400175"))
 API_HASH       = os.getenv("API_HASH", "bd6cffecc030c99a2d23e2f9ff892c5f")
-SESSION_STRING = os.getenv("SESSION_STRING", "")   # for Render (no local session file)
+SESSION_STRING = os.getenv("SESSION_STRING", "BQc9Ni8AQwZ8LUjwMeV13RCCaCDoBeJ6QzYy5CENB7Tdyfv8jR5zo5aU6H7gdK3xaYQ8qUqNgYp-19naCKlyd3FtsJaJ-aHM0-xa-x02YcJi4RYTxWGB5q4dWq3naBI9xH-cgN_MsZdRVgpI0_wfZBI8gfQ5acf00Szy8tp-UIAwkYGdBVt1PYmXcW1dLzPoaG605Kjohwo0zI08CmGP6Sor0JerISHp3I2PQv7ck8z0eqEGvrLlZ0rK2s0_jZNVIq3vVTIIQGc7YzPNVEM0d30rf8FWnVF0PLikrnMpLGm1k5chRVFW9bkKRpcq0duHjeRq-n9zaq6q8N3Z2_HzneTN0V1Y_wAAAABIYFlhAA")   # for Render (no local session file)
 LOG_GROUP_ID   = int(os.getenv("LOG_GROUP_ID", "-1002798388984"))
 MODEL          = os.getenv("JARVIS_MODEL", "gemma4:27b")
 DEPLOY_DIR     = os.getenv("DEPLOY_DIR", "/opt/bots")
