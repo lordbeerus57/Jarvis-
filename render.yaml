@@ -1,0 +1,21 @@
+services:
+  - type: worker
+    name: jarvis-ghost
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python jarvis_ghost.py
+    envVars:
+      - key: API_ID
+        sync: false
+      - key: API_HASH
+        sync: false
+      - key: SESSION_STRING
+        sync: false
+      - key: LOG_GROUP_ID
+        sync: false
+      - key: JARVIS_MODEL
+        value: gemma4:27b
+      - key: DEPLOY_DIR
+        value: /opt/bots
+      - key: VENV_PYTHON
+        value: python3
