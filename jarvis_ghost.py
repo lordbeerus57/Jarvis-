@@ -2,50 +2,50 @@ import os, asyncio, logging
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.tl.types import User
-import google.generativeai as genai
+from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # --- Required Env Vars ---
-API_ID         = int(os.getenv("API_ID"))
-API_HASH       = os.getenv("API_HASH")
+API_ID = int(os.getenv("API_ID"))
+API_HASH = os.getenv("API_HASH")
 SESSION_STRING = os.getenv("SESSION_STRING")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GROK_API_KEY = os.getenv("GROK_API_KEY")
 
 # --- Optional Env Vars with defaults ---
-OWNER_ID       = int(os.getenv("OWNER_ID", "1214273889"))
-LOG_GROUP_ID   = int(os.getenv("LOG_GROUP_ID", "0"))
-MODEL          = os.getenv("MODEL", "gemini-1.5-flash")
-DEPLOY_DIR     = os.getenv("DEPLOY_DIR", "downloads")
-REGISTRY_FILE  = os.getenv("REGISTRY_FILE", "registry.json")
-AUTO_REPLY     = os.getenv("AUTO_REPLY", "false").lower() == "true"
+OWNER_ID = int(os.getenv("OWNER_ID", "1214273889"))
+LOG_GROUP_ID = int(os.getenv("LOG_GROUP_ID", "0"))
+MODEL = os.getenv("MODEL", "grok-2-latest")
+DEPLOY_DIR = os.getenv("DEPLOY_DIR", "downloads")
+REGISTRY_FILE = os.getenv("REGISTRY_FILE", "registry.json")
+AUTO_REPLY = os.getenv("AUTO_REPLY", "false").lower() == "true"
 
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel(MODEL)
-vision_model = genai.GenerativeModel('gemini-1.5-pro')
+grok = AsyncOpenAI(api_key=GROK_API_KEY, base_url="https://api.x.ai/v1")
 client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
 
 # --- Helper ---
 async def log_to_group(text):
     try:
-        if LOG_GROUP_ID != 0: 
+        if LOG_GROUP_ID!= 0:
             await client.send_message(LOG_GROUP_ID, f"**LOG:**\n{text}")
     except: pass
 
-async def ask_ai(prompt, image_path=None):
+async def ask_ai(prompt, system="You are a helpful assistant."):
     try:
-        if image_path:
-            img = genai.upload_file(image_path)
-            response = await vision_model.generate_content_async([prompt, img])
-        else:
-            response = await model.generate_content_async(prompt)
-        await asyncio.sleep(4)
-        return response.text
+        response = await grok.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        await asyncio.sleep(3) # Grok rate limit safety
+        return response.choices[0].message.content
     except Exception as e:
-        await log_to_group(f"AI Error: {str(e)}")
-        return f"AI Error: {str(e)}"
+        await log_to_group(f"Grok Error: {str(e)}")
+        return f"Grok Error: {str(e)}"
 
 def is_owner(event):
     return event.sender_id == OWNER_ID
@@ -113,7 +113,7 @@ async def tone(event):
 async def code(event):
     if not is_owner(event): return
     msg = await event.edit("`Coding...`")
-    await msg.edit(await ask_ai(f"Write Python code for: {event.pattern_match.group(1)}. Use markdown block."))
+    await msg.edit(await ask_ai(f"Write Python code for: {event.pattern_match.group(1)}. Use markdown block.", "You are a coding assistant."))
 
 @client.on(events.NewMessage(outgoing=True, pattern=r'\.explain'))
 async def explain_code(event):
@@ -121,7 +121,7 @@ async def explain_code(event):
     reply_msg = await event.get_reply_message()
     if not reply_msg: return await event.edit("Reply to code")
     msg = await event.edit("`Explaining...`")
-    await msg.edit(await ask_ai(f"Explain this code simply:\n{reply_msg.text}"))
+    await msg.edit(await ask_ai(f"Explain this code simply:\n{reply_msg.text}", "You are a coding tutor."))
 
 @client.on(events.NewMessage(outgoing=True, pattern=r'\.debug'))
 async def debug(event):
@@ -129,29 +129,17 @@ async def debug(event):
     reply_msg = await event.get_reply_message()
     if not reply_msg: return await event.edit("Reply to code")
     msg = await event.edit("`Debugging...`")
-    await msg.edit(await ask_ai(f"Find bugs and fix. Explain what was wrong:\n{reply_msg.text}"))
+    await msg.edit(await ask_ai(f"Find bugs and fix. Explain what was wrong:\n{reply_msg.text}", "You are a debugging expert."))
 
 @client.on(events.NewMessage(outgoing=True, pattern=r'\.vision (.+)'))
 async def vision(event):
     if not is_owner(event): return
-    reply_msg = await event.get_reply_message()
-    if not reply_msg or not reply_msg.photo: return await event.edit("Reply to an image")
-    msg = await event.edit("`Looking...`")
-    path = await reply_msg.download_media(file=f"{DEPLOY_DIR}/temp.jpg")
-    result = await ask_ai(event.pattern_match.group(1), path)
-    await msg.edit(result)
-    os.remove(path)
+    await event.edit("`Grok API doesn't support vision yet. Use.ai to describe images manually.`")
 
 @client.on(events.NewMessage(outgoing=True, pattern=r'\.ocr'))
 async def ocr(event):
     if not is_owner(event): return
-    reply_msg = await event.get_reply_message()
-    if not reply_msg or not reply_msg.photo: return await event.edit("Reply to an image")
-    msg = await event.edit("`Extracting...`")
-    path = await reply_msg.download_media(file=f"{DEPLOY_DIR}/temp.jpg")
-    result = await ask_ai("Extract all text from this image. Return only text.", path)
-    await msg.edit(f"**Extracted:**\n\n{result}")
-    os.remove(path)
+    await event.edit("`Grok API doesn't support OCR yet.`")
 
 @client.on(events.NewMessage(outgoing=True, pattern=r'\.roast'))
 async def roast(event):
@@ -161,7 +149,7 @@ async def roast(event):
     sender = await reply_msg.get_sender()
     name = sender.first_name if isinstance(sender, User) else "User"
     msg = await event.edit("`Cooking...`")
-    await msg.edit(await ask_ai(f"Playful roast for {name} in 1-2 sentences: {reply_msg.text}"))
+    await msg.edit(await ask_ai(f"Playful roast for {name} in 1-2 sentences: {reply_msg.text}", "You are witty and playful."))
 
 @client.on(events.NewMessage(outgoing=True, pattern=r'\.meme'))
 async def meme(event):
@@ -169,7 +157,7 @@ async def meme(event):
     reply_msg = await event.get_reply_message()
     text = reply_msg.text if reply_msg else "make a meme"
     msg = await event.edit("`Memeing...`")
-    await msg.edit(await ask_ai(f"Turn this into a funny meme caption: {text}"))
+    await msg.edit(await ask_ai(f"Turn this into a funny meme caption: {text}", "You are a meme creator."))
 
 @client.on(events.NewMessage(outgoing=True, pattern=r'\.ping'))
 async def ping(event):
@@ -199,13 +187,13 @@ async def download(event):
 async def help_cmd(event):
     if not is_owner(event): return
     await event.edit("""
-**AI Commands**
+**Grok AI Commands**
 `.ai <q>` | `.ask <q>` - reply | `.summarize <n>` | `.tldr` - reply
 `.tr <lang>` | `.fix` | `.tone <type>` - reply
 `.code <task>` | `.explain` | `.debug` - reply to code
-`.vision <q>` | `.ocr` - reply to image
 `.roast` | `.meme` - reply
 `.ping` | `.id` | `.dl` - reply to media
+`.vision` | `.ocr` - disabled, no vision API yet
 """)
 
 # --- Auto Reply ---
@@ -220,7 +208,7 @@ async def auto_reply_dm(event):
 # --- Start ---
 async def main():
     await client.start()
-    await log_to_group(f"Userbot started. Owner: {OWNER_ID}")
+    await log_to_group(f"Userbot started. Owner: {OWNER_ID} | Model: {MODEL}")
     logging.info(f"Started. Owner: {OWNER_ID}")
     await client.run_until_disconnected()
 
