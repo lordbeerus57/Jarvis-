@@ -51,14 +51,16 @@ from pyrogram.types import (
 )
 
 # ══════════════════════════════════════════════
-# ── CONFIGURATION — Edit these
+# ── CONFIGURATION — Set these as Render env vars
 # ══════════════════════════════════════════════
-BOT_TOKEN  = "8380616064:AAHA9bWXBfxE9b3vqpfdiYGPa25eRYtdjfo"
-API_ID     = 12400175     # From my.telegram.org
-API_HASH   = "bd6cffecc030c99a2d23e2f9ff892c5f""
-ADMIN_IDS  = [1214273889]  # Your Telegram user ID(s)
+BOT_TOKEN  = os.environ.get("BOT_TOKEN", "")
+API_ID     = int(os.environ.get("API_ID", "0"))
+API_HASH   = os.environ.get("API_HASH", "")
+ADMIN_IDS  = [int(x) for x in os.environ.get("ADMIN_IDS", "0").split(",") if x.strip().isdigit()]
 
-DEX_FILE      = "digimon_dex.json"
+# On Render, use /data (persistent disk). Locally falls back to current dir.
+_DATA_DIR = Path("/data") if Path("/data").exists() else Path(".")
+DEX_FILE  = str(_DATA_DIR / "digimon_dex.json")
 BASE_URL      = "https://www.grindosaur.com"
 GAME_SLUG     = "digimon-story-time-stranger"
 LIST_URL      = f"{BASE_URL}/en/games/{GAME_SLUG}/digimon/"
@@ -604,12 +606,4 @@ async def cmd_help(_, msg: Message):
         "`/attribute <attr>` — Filter by attribute\n"
         "`/generation <gen>` — Filter by generation\n\n"
         "**⚔️ Tools**\n"
-        "`/compare <a> | <b>` — Stat comparison\n"
-        "`/stats` — Dex statistics\n\n"
-    )
-    if is_admin(msg.from_user.id):
-        text += (
-            "**🔧 Admin**\n"
-            "`/scrape` — Scrape missing Digimon\n"
-            "`/scrapeall` — Force re-scrape all\n"
-     
+        "`/compare <a> | <b>` — Stat com
