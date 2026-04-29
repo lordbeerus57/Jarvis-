@@ -8,9 +8,9 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # ===== DUMMY CONFIG (FOR TESTING ONLY) =====
-API_ID = 123456
-API_HASH = "abcdef123456abcdef123456abcdef12"
-BOT_TOKEN = "123456:ABCDEF_FAKE_TOKEN"
+API_ID = 12400175
+API_HASH="bd6cffecc030c99a2d23e2f9ff892c5f"
+BOT_TOKEN = "8380616064:AAHA9bWXBfxE9b3vqpfdiYGPa25eRYtdjfo"
 
 # ===== CONFIG =====
 BASE_URL = "https://digimon.net"
