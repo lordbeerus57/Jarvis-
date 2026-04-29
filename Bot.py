@@ -1,5 +1,63 @@
-async def run_rescrape(slug: str) -> dict | None:
-    """Re-scrape a single Digimon and update the dex."""
+import asyncio
+import re
+import os
+import json
+import requests
+import random
+
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+# ===== CONFIG =====
+API_ID = int(os.getenv("12400175"))
+API_HASH = os.getenv("bd6cffecc030c99a2d23e2f9ff892c5f")
+BOT_TOKEN = os.getenv("8380616064:AAHA9bWXBfxE9b3vqpfdiYGPa25eRYtdjfo")
+
+BASE_URL = "https://digimon.net"
+GAME_SLUG = "cyber-sleuth"
+
+DEX_FILE = "dex.json"
+
+# ===== STORAGE =====
+def load_dex():
+    if not os.path.exists(DEX_FILE):
+        return {}
+    with open(DEX_FILE, "r") as f:
+        return json.load(f)
+
+def save_dex(data):
+    with open(DEX_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+# ===== SCRAPER (basic placeholder) =====
+def scrape_digimon_page(slug, digimon_id, url):
+    return {
+        "name": slug.replace("-", " ").title(),
+        "slug": slug,
+        "id": digimon_id,
+        "generation": "Rookie",
+        "type": "Vaccine",
+        "attribute": "Fire",
+        "memory_cost": random.randint(5, 20),
+        "stats": {
+            "HP": random.randint(50, 300),
+            "ATK": random.randint(50, 300),
+            "DEF": random.randint(50, 300),
+            "INT": random.randint(50, 300),
+            "SPI": random.randint(50, 300),
+            "SPD": random.randint(50, 300),
+        },
+        "moves": [
+            {"name": "Fire Blast", "power": 120, "sp_cost": 10},
+            {"name": "Claw Attack", "power": 80, "sp_cost": 5},
+        ],
+        "evolutions": {"from": [], "to": []},
+        "url": url,
+        "description": "A powerful Digimon."
+    }
+
+# ===== CORE FUNCTION =====
+async def run_rescrape(slug: str):
     loop = asyncio.get_event_loop()
 
     def _sync():
@@ -9,129 +67,100 @@ async def run_rescrape(slug: str) -> dict | None:
         return scrape_digimon_page(slug, digimon_id, url)
 
     result = await loop.run_in_executor(None, _sync)
+
     if result and result.get("name"):
         dex = load_dex()
         dex[slug] = result
         save_dex(dex)
+
     return result
 
+# ===== FORMAT =====
+def format_card(d):
+    return f"""🦖 {d['name']}
+⚡ Gen: {d['generation']}
+🔷 Type: {d['type']}
+🌀 Attr: {d['attribute']}
 
-# ══════════════════════════════════════════════
-# ── FORMATTERS
-# ══════════════════════════════════════════════
-STAT_BARS = {
-    range(0,   50):  "▱▱▱▱▱",
-    range(50,  100): "▰▱▱▱▱",
-    range(100, 150): "▰▰▱▱▱",
-    range(150, 200): "▰▰▰▱▱",
-    range(200, 250): "▰▰▰▰▱",
-    range(250, 999): "▰▰▰▰▰",
-}
+❤️ HP: {d['stats']['HP']}
+⚔️ ATK: {d['stats']['ATK']}
+🛡 DEF: {d['stats']['DEF']}
+🔮 INT: {d['stats']['INT']}
+💨 SPD: {d['stats']['SPD']}
+"""
 
-def stat_bar(value: int | None) -> str:
-    if value is None:
-        return "—"
-    for r, bar in STAT_BARS.items():
-        if value in r:
-            return f"{bar} {value}"
-    return f"▰▰▰▰▰ {value}"
-
-
-def format_dex_card(d: dict) -> str:
-    name  = d.get("name", "Unknown")
-    did   = f"#{d['id']:03d}" if d.get("id") else "—"
-    gen   = d.get("generation") or "—"
-    typ   = d.get("type") or "—"
-    attr  = d.get("attribute") or "—"
-    mem   = str(d.get("memory_cost")) if d.get("memory_cost") else "—"
-    desc  = d.get("description") or ""
-    stats = d.get("stats", {})
-
-    evos_from = ", ".join(d.get("evolutions", {}).get("from", [])) or "—"
-    evos_to   = ", ".join(d.get("evolutions", {}).get("to",   [])) or "—"
-
-    text = (
-        f"🦖 {name} {did}\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"⚡ Generation: {gen}\n"
-        f"🔷 Type: {typ}\n"
-        f"🌀 Attribute: {attr}\n"
-        f"💾 Memory: {mem}\n\n"
-    )
-
-    if stats:
-        text += (
-            f"📊 Stats\n"
-            f"❤️ HP   {stat_bar(stats.get('HP'))}\n"
-            f"⚔️ ATK  {stat_bar(stats.get('ATK'))}\n"
-            f"🛡 DEF  {stat_bar(stats.get('DEF'))}\n"
-            f"🔮 INT  {stat_bar(stats.get('INT'))}\n"
-            f"✨ SPI  {stat_bar(stats.get('SPI'))}\n"
-            f"💨 SPD  {stat_bar(stats.get('SPD'))}\n\n"
-        )
-
-    if desc:
-        text += f"📖 _{desc[:300]}{'…' if len(desc) > 300 else ''}_\n\n"
-
-    text += (
-        f"🔄 Digivolves from: {evos_from}\n"
-        f"⬆️ Digivolves to: {evos_to}\n"
-    )
-
-    return text
-
-
-def dex_card_buttons(d: dict) -> InlineKeyboardMarkup:
-    slug = d.get("slug", "")
-    rows = []
-
-    # Moves button
-    if d.get("moves"):
-        rows.append([InlineKeyboardButton("⚔️ Moves / Skills", callback_data=f"moves:{slug}")])
-
-    # Evolution buttons
-    evo_from = d.get("evolutions", {}).get("from", [])
-    evo_to   = d.get("evolutions", {}).get("to",   [])
-
-    if evo_from:
-        btns = []
-        for name in evo_from[:3]:
-            s = name.lower().replace(" ", "-").replace("(", "").replace(")", "")
-            btns.append(InlineKeyboardButton(f"⬇️ {name}", callback_data=f"dex:{s}"))
-        rows.append(btns)
-
-    if evo_to:
-        btns = []
-        for name in evo_to[:3]:
-            s = name.lower().replace(" ", "-").replace("(", "").replace(")", "")
-            btns.append(InlineKeyboardButton(f"⬆️ {name}", callback_data=f"dex:{s}"))
-        rows.append(btns)
-
-    rows.append([
-        InlineKeyboardButton("🔀 Random", callback_data="random"),
-        InlineKeyboardButton("🌐 Wiki", url=d.get("url", BASE_URL)),
+def buttons(d):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("⚔️ Moves", callback_data=f"moves:{d['slug']}")],
+        [InlineKeyboardButton("🔀 Random", callback_data="random")]
     ])
 
-    return InlineKeyboardMarkup(rows)
-
-
-def format_moves(d: dict) -> str:
-    moves = d.get("moves", [])
-    if not moves:
-        return f"{d['name']} has no recorded moves."
-
-    text = f"⚔️ {d['name']} — Moves & Skills\n━━━━━━━━━━━━━━━\n"
-    for m in moves:
-        text += f"\n🔹 {m['name']}"
-        if m.get("type"):
-            text += f"  [{m['type']}]"
-        if m.get("power"):
-            text += f"  💥 {m['power']}"
-        if m.get("sp_cost"):
-            text += f"  💠 SP: {m['sp_cost']}"
-        text += "\n"
+def format_moves(d):
+    text = f"⚔️ {d['name']} Moves:\n"
+    for m in d["moves"]:
+        text += f"\n🔹 {m['name']} 💥{m['power']} SP:{m['sp_cost']}"
     return text
 
+# ===== BOT =====
+app = Client(
+    "digimon-bot",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN
+)
 
-def format_compare(a: dict, b: dict) -> str:
-    def s(d, k):
+# ===== COMMANDS (UNCHANGED STYLE) =====
+@app.on_message(filters.command("start"))
+async def start(_, msg):
+    await msg.reply("🤖 Digimon Bot is Alive!")
+
+@app.on_message(filters.command("dex"))
+async def dex(_, msg):
+    if len(msg.command) < 2:
+        return await msg.reply("Usage: /dex agumon")
+
+    slug = msg.command[1].lower()
+    data = await run_rescrape(slug)
+
+    await msg.reply(
+        format_card(data),
+        reply_markup=buttons(data)
+    )
+
+@app.on_message(filters.command("random"))
+async def random_cmd(_, msg):
+    slug = random.choice(["agumon", "gabumon", "patamon"])
+    data = await run_rescrape(slug)
+
+    await msg.reply(
+        format_card(data),
+        reply_markup=buttons(data)
+    )
+
+# ===== CALLBACK =====
+@app.on_callback_query()
+async def cb(_, query):
+    data = query.data
+
+    if data == "random":
+        slug = random.choice(["agumon", "gabumon", "patamon"])
+        d = await run_rescrape(slug)
+
+        await query.message.edit(
+            format_card(d),
+            reply_markup=buttons(d)
+        )
+
+    elif data.startswith("moves:"):
+        slug = data.split(":")[1]
+        d = load_dex().get(slug)
+
+        if not d:
+            d = await run_rescrape(slug)
+
+        await query.message.edit(format_moves(d))
+
+# ===== RUN =====
+if __name__ == "__main__":
+    print("🚀 Bot running on Railway...")
+    app.run()
