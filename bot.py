@@ -2,20 +2,19 @@ import asyncio
 import re
 import os
 import json
-import requests
 import random
 
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# ===== CONFIG =====
-API_ID = int(os.getenv("12400175"))
-API_HASH = os.getenv("bd6cffecc030c99a2d23e2f9ff892c5f")
-BOT_TOKEN = os.getenv("8380616064:AAHA9bWXBfxE9b3vqpfdiYGPa25eRYtdjfo")
+# ===== DUMMY CONFIG (FOR TESTING ONLY) =====
+API_ID = 123456
+API_HASH = "abcdef123456abcdef123456abcdef12"
+BOT_TOKEN = "123456:ABCDEF_FAKE_TOKEN"
 
+# ===== CONFIG =====
 BASE_URL = "https://digimon.net"
 GAME_SLUG = "cyber-sleuth"
-
 DEX_FILE = "dex.json"
 
 # ===== STORAGE =====
@@ -29,10 +28,14 @@ def save_dex(data):
     with open(DEX_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
-# ===== SCRAPER (basic placeholder) =====
+# ===== SAFE HELPER =====
+def s(d, k):
+    return d.get(k)
+
+# ===== SCRAPER (PLACEHOLDER DATA) =====
 def scrape_digimon_page(slug, digimon_id, url):
     return {
-        "name": slug.replace("-", " ").title(),
+        "name": slug.title(),
         "slug": slug,
         "id": digimon_id,
         "generation": "Rookie",
@@ -40,12 +43,11 @@ def scrape_digimon_page(slug, digimon_id, url):
         "attribute": "Fire",
         "memory_cost": random.randint(5, 20),
         "stats": {
-            "HP": random.randint(50, 300),
-            "ATK": random.randint(50, 300),
-            "DEF": random.randint(50, 300),
-            "INT": random.randint(50, 300),
-            "SPI": random.randint(50, 300),
-            "SPD": random.randint(50, 300),
+            "HP": random.randint(100, 300),
+            "ATK": random.randint(100, 300),
+            "DEF": random.randint(100, 300),
+            "INT": random.randint(100, 300),
+            "SPD": random.randint(100, 300),
         },
         "moves": [
             {"name": "Fire Blast", "power": 120, "sp_cost": 10},
@@ -56,19 +58,19 @@ def scrape_digimon_page(slug, digimon_id, url):
         "description": "A powerful Digimon."
     }
 
-# ===== CORE FUNCTION =====
+# ===== CORE =====
 async def run_rescrape(slug: str):
     loop = asyncio.get_event_loop()
 
     def _sync():
         url = f"{BASE_URL}/en/games/{GAME_SLUG}/digimon/{slug}/"
-        id_match = re.match(r"(\d+)-", slug)
-        digimon_id = int(id_match.group(1)) if id_match else None
+        match = re.match(r"(\d+)-", slug)
+        digimon_id = int(match.group(1)) if match else None
         return scrape_digimon_page(slug, digimon_id, url)
 
     result = await loop.run_in_executor(None, _sync)
 
-    if result and result.get("name"):
+    if result:
         dex = load_dex()
         dex[slug] = result
         save_dex(dex)
@@ -77,16 +79,16 @@ async def run_rescrape(slug: str):
 
 # ===== FORMAT =====
 def format_card(d):
-    return f"""🦖 {d['name']}
-⚡ Gen: {d['generation']}
-🔷 Type: {d['type']}
-🌀 Attr: {d['attribute']}
+    return f"""🦖 {s(d,'name')}
+⚡ Gen: {s(d,'generation')}
+🔷 Type: {s(d,'type')}
+🌀 Attr: {s(d,'attribute')}
 
-❤️ HP: {d['stats']['HP']}
-⚔️ ATK: {d['stats']['ATK']}
-🛡 DEF: {d['stats']['DEF']}
-🔮 INT: {d['stats']['INT']}
-💨 SPD: {d['stats']['SPD']}
+❤️ HP: {s(d['stats'],'HP')}
+⚔️ ATK: {s(d['stats'],'ATK')}
+🛡 DEF: {s(d['stats'],'DEF')}
+🔮 INT: {s(d['stats'],'INT')}
+💨 SPD: {s(d['stats'],'SPD')}
 """
 
 def buttons(d):
@@ -109,10 +111,10 @@ app = Client(
     bot_token=BOT_TOKEN
 )
 
-# ===== COMMANDS (UNCHANGED STYLE) =====
+# ===== COMMANDS =====
 @app.on_message(filters.command("start"))
 async def start(_, msg):
-    await msg.reply("🤖 Digimon Bot is Alive!")
+    await msg.reply("🤖 Digimon Bot Running!")
 
 @app.on_message(filters.command("dex"))
 async def dex(_, msg):
@@ -153,14 +155,12 @@ async def cb(_, query):
 
     elif data.startswith("moves:"):
         slug = data.split(":")[1]
-        d = load_dex().get(slug)
-
-        if not d:
-            d = await run_rescrape(slug)
+        dex = load_dex()
+        d = dex.get(slug) or await run_rescrape(slug)
 
         await query.message.edit(format_moves(d))
 
 # ===== RUN =====
 if __name__ == "__main__":
-    print("🚀 Bot running on Railway...")
+    print("🚀 Bot running...")
     app.run()
