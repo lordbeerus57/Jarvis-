@@ -1,21 +1,19 @@
 services:
   - type: worker
-    name: jarvis-ghost
+    name: Dex
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: python jarvis_ghost.py
+    startCommand: python Dex.py
     envVars:
+      - key: BOT_TOKEN
+        sync: false
       - key: API_ID
         sync: false
       - key: API_HASH
         sync: false
-      - key: SESSION_STRING
+      - key: ADMIN_IDS
         sync: false
-      - key: LOG_GROUP_ID
-        sync: false
-      - key: JARVIS_MODEL
-        value: gemma4:27b
-      - key: DEPLOY_DIR
-        value: /opt/bots
-      - key: VENV_PYTHON
-        value: python3
+    disk:
+      name: dex-storage
+      mountPath: /data
+      sizeGB: 1
