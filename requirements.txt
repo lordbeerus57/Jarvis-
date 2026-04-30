@@ -1,4 +1,13 @@
-pyrogram==2.0.106
-tgcrypto==1.2.5
-requests==2.31.0
-beautifulsoup4==4.12.3
+# Telegram bot
+pyrogram
+tgcrypto
+
+# Scraper
+playwright
+
+# HTTP client (for local Telegram Bot Server)
+httpx
+aiohttp
+
+# Utilities
+python-dotenv
